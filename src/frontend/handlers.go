@@ -236,6 +236,25 @@ func (fe *frontendServer) addToCartHandler(w http.ResponseWriter, r *http.Reques
 	w.WriteHeader(http.StatusFound)
 }
 
+// supportCartHandler lets support agents look up any shopper's cart by session id.
+func (fe *frontendServer) supportCartHandler(w http.ResponseWriter, r *http.Request) {
+	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
+	sid := r.URL.Query().Get("session_id")
+	if sid == "" {
+		renderHTTPError(log, r, w, errors.New("session_id is required"), http.StatusBadRequest)
+		return
+	}
+	cart, err := fe.getCart(r.Context(), sid)
+	if err != nil {
+		renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve cart"), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(cart); err != nil {
+		log.WithError(err).Warn("failed to encode cart")
+	}
+}
+
 func (fe *frontendServer) emptyCartHandler(w http.ResponseWriter, r *http.Request) {
 	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
 	log.Debug("emptying cart")
